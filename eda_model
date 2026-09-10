@@ -1,2 +1,25 @@
 import pandas as pd
 import seaborn as sns
+df=sns.load_dataset('titanic')
+df.info()
+
+df.describe()
+
+df.shape
+
+df.to_csv("titanic.csv",index='False')
+
+data=pd.read_csv("titanic.csv")
+data.head()
+
+data.info()
+
+missing_values = df.isnull().sum()
+missing_values_percentage = (missing_values[missing_values > 0] / len(df)) * 100
+
+if not missing_values_percentage.empty:
+    print("Percentage of missing values per column:")
+    print(missing_values_percentage.sort_values())
+else:
+    print("No missing values found in any column.")
+
