@@ -261,6 +261,5 @@ print("\nDataFrame with standardized columns (first 5 rows):")
 display(df[['age', 'age_standardized', 'fare', 'fare_standardized']].head())
 
 
-print("*"*50)
-print(" "*20,"PART-B")
-print("*"*50)
+
+
