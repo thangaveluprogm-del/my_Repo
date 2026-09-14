@@ -1,5 +1,8 @@
 import pandas as pd
 import seaborn as sns
+print("*"*50)
+print(" "*20,"PART-A")
+print("*"*50)
 df=sns.load_dataset('titanic')
 df.info()
 
@@ -200,6 +203,64 @@ plt.ylabel('Survival Rate')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show()
 
+# Create age groups (bins)
+age_bins = [0, 12, 18, 60, 100]
+age_labels = ['Child', 'Teenager', 'Adult', 'Senior']
+df['age_group'] = pd.cut(df['age'], bins=age_bins, labels=age_labels, right=False)
+
+# Calculate survival rate by age group
+survival_by_age_group = df.groupby('age_group')['survived'].mean().reset_index()
+
+# Create a bar plot
+plt.figure(figsize=(8, 5))
+sns.barplot(x='age_group', y='survived', data=survival_by_age_group, palette='magma')
+plt.title('Survival Rate by Age Group')
+plt.xlabel('Age Group')
+plt.ylabel('Survival Rate')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+# Calculate survival rate by embarked port
+survival_by_embarked = df.groupby('embark_town')['survived'].mean().reset_index()
+
+# Create a bar plot
+plt.figure(figsize=(8, 5))
+sns.barplot(x='embark_town', y='survived', data=survival_by_embarked, palette='flare')
+plt.title('Survival Rate by Embarkation Town')
+plt.xlabel('Embarkation Town')
+plt.ylabel('Survival Rate')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+# Create a violin plot to show the distribution of fare for survived vs. not survived, faceted by Pclass
+plt.figure(figsize=(12, 7))
+sns.violinplot(x='pclass', y='fare', hue='survived', data=df, palette='muted', split=True)
+plt.title('Fare Distribution and Survival by Passenger Class')
+plt.xlabel('Passenger Class')
+plt.ylabel('Fare')
+plt.xticks(ticks=[0, 1, 2], labels=['1st Class', '2nd Class', '3rd Class'])
+plt.legend(title='Survived', loc='upper right', labels=['No', 'Yes'])
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+print("Before Standardization:")
+print(f"Age - Mean: {df['age'].mean():.2f}, Std: {df['age'].std():.2f}")
+print(f"Fare - Mean: {df['fare'].mean():.2f}, Std: {df['fare'].std():.2f}")
+
+# Manually standardize 'age' and 'fare' using the z-score formula
+df['age_standardized'] = (df['age'] - df['age'].mean()) / df['age'].std()
+df['fare_standardized'] = (df['fare'] - df['fare'].mean()) / df['fare'].std()
+
+# After standardization: Print mean and standard deviation for the new columns
+print("\nAfter Standardization:")
+print(f"Age (Standardized) - Mean: {df['age_standardized'].mean():.2f}, Std: {df['age_standardized'].std():.2f}")
+print(f"Fare (Standardized) - Mean: {df['fare_standardized'].mean():.2f}, Std: {df['fare_standardized'].std():.2f}")
+
+# Display the first few rows with the new standardized columns
+print("\nDataFrame with standardized columns (first 5 rows):")
+display(df[['age', 'age_standardized', 'fare', 'fare_standardized']].head())
 
 
-
+print("*"*50)
+print(" "*20,"PART-B")
+print("*"*50)
