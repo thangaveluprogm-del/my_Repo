@@ -166,4 +166,40 @@ else:
 print(f"\nThe distribution of 'fare' is {skewness}, as the mean ({mean_fare:.2f}) is {'greater than' if mean_fare > median_fare else 'less than' if mean_fare < median_fare else 'equal to'} the median ({median_fare:.2f}).")
 
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Group by 'sex' and 'pclass' to calculate the mean of 'survived'
+survival_by_sex_pclass = df.groupby(['sex', 'pclass'])['survived'].mean().reset_index()
+
+# Create a bar plot
+plt.figure(figsize=(10, 6))
+sns.barplot(x='pclass', y='survived', hue='sex', data=survival_by_sex_pclass, palette='viridis')
+plt.title('Survival Rate by Passenger Class and Sex')
+plt.xlabel('Passenger Class')
+plt.ylabel('Survival Rate')
+plt.xticks(ticks=[0, 1, 2], labels=['1st Class', '2nd Class', '3rd Class'])
+plt.legend(title='Sex')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+
+age_bins = [0, 12, 18, 60, 100]
+age_labels = ['Child', 'Teenager', 'Adult', 'Senior']
+df['age_group'] = pd.cut(df['age'], bins=age_bins, labels=age_labels, right=False)
+
+# Calculate survival rate by age group
+survival_by_age_group = df.groupby('age_group')['survived'].mean().reset_index()
+
+# Create a bar plot
+plt.figure(figsize=(8, 5))
+sns.barplot(x='age_group', y='survived', data=survival_by_age_group, palette='magma')
+plt.title('Survival Rate by Age Group')
+plt.xlabel('Age Group')
+plt.ylabel('Survival Rate')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+
+
 
