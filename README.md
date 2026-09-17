@@ -8,3 +8,7 @@ Interpretation 3:
 Passengers who embarked from Cherbourg ('C') had a noticeably higher survival rate compared to those from Southampton ('S') and Queenstown ('Q'). This could be indirectly linked to passenger class distribution at each port, as Cherbourg passengers might have had a higher proportion of first-class passengers. This again highlights the importance of social status in survival.
 Interpretation 4:
 This violin plot clearly shows that passengers who paid higher fares, predominantly those in 1st class, had a much higher likelihood of survival. Within each passenger class, survivors generally paid higher fares than non-survivors. This reinforces the argument that economic status, often correlated with ticket fare and passenger class, was a major determinant of who survived the disaster.
+
+
+Classifier Recommendation
+Based on the detailed evaluation, I would recommend deploying the Logistic Regression (SMOTE) model. While all models performed reasonably well, Logistic Regression (SMOTE) achieved the highest F1-Score for the 'survived' class (0.74) and the highest AUC (0.87), indicating a superior balance between precision and recall for the minority class and overall better discriminative power. This improvement in identifying survivors, crucial in this context, was due to the effective handling of class imbalance through SMOTE oversampling.
