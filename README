@@ -1,0 +1,97 @@
+                                                                  *****Architecture Description of the RAG Pipeline****
+
+This RAG (Retrieval Augmented Generation) pipeline is designed to answer user questions about Zepto's customer service policies. It leverages LangChain for document processing and vector storage, and LangGraph for orchestrating the flow, all exposed via a FastAPI application.
+
+                      ****Pipeline Stages****
+
+1.  **Ingestion:**
+    *   **Components:** `langchain_community.document_loaders.DirectoryLoader`, `langchain_text_splitters.RecursiveCharacterTextSplitter`
+    *   **Description:** Raw policy documents (plain text files in the `docs/` directory) are loaded using `DirectoryLoader` and `TextLoader`. These documents are then broken down into smaller, overlapping `chunks` by the `RecursiveCharacterTextSplitter` (configured with `chunk_size=500` and `chunk_overlap=50`) to ensure context is maintained across segments while making them suitable for embedding and retrieval.
+    *   **Data Flow:** Raw text files -> `Document` objects -> List of `Document` chunks.
+
+2.  **Embedding:**
+    *   **Components:** `langchain_community.embeddings.SentenceTransformerEmbeddings` (using `all-MiniLM-L6-v2`)
+    *   **Description:** Each text `chunk` generated during the ingestion phase is converted into a numerical vector (embedding) that captures its semantic meaning. This is performed by the `SentenceTransformerEmbeddings` model.
+    *   **Data Flow:** Text `chunk` -> Numerical embedding vector.
+
+3.  **Storage & Retrieval:**
+    *   **Components:** `langchain_community.vectorstores.Chroma`
+    *   **Description:** The generated embeddings, along with their corresponding text chunks, are stored in a `ChromaDB` vector store, which persists to the `./chroma_db` directory. This allows for efficient similarity searches.
+    *   **Data Flow:** Embedding vector + original text `chunk` -> Stored in ChromaDB.
+    *   **Retrieval:** When a policy-related user query (`question`) is received, the `retrieve_and_answer` node in the LangGraph performs a similarity search (`vectorstore.similarity_search(question, k=3)`) against the ChromaDB to find the top 3 most relevant policy document chunks.
+
+4.  **Generation:**
+    *   **Components:** `classify_intent` (LangGraph node), `retrieve_and_answer` (LangGraph node), `direct_answer` (LangGraph node), Pydantic `AnswerSchema`.
+    *   **Description:** The `LangGraph StateGraph` orchestrates the answer generation process:
+        1.  **Intent Classification:** The `classify_intent` node first analyzes the user's `question` to determine if it's a `policy_question` or a `general_question`.
+        2.  **Routing:** The `route_intent` function (an edge in the LangGraph) directs the flow:
+            *   If `policy_question`: It routes to the `retrieve_and_answer` node.
+            *   If `general_question`: It routes to the `direct_answer` node.
+        3.  **Answer Generation:**
+            *   **`retrieve_and_answer` node (for policy questions):** Takes the retrieved documents and the original `question`. In `MOCK_LLM=1` mode, it constructs a templated answer using a snippet from the top retrieved document, lists the sources (document file names), and sets `confidence=1.0`. In a real-LLM scenario (`MOCK_LLM=0`), it would use the provided `Structured Prompt Template` to prompt an actual LLM (e.g., Gemini) with the retrieved context to generate a concise answer.
+            *   **`direct_answer` node (for general questions):** Provides a canned response indicating that it can only answer policy-related questions. It returns an empty `sources` list and `confidence=1.0` in `MOCK_LLM=1` mode. In a real-LLM scenario, it would directly prompt an LLM without retrieval.
+        4.  **Output Formatting:** Both `retrieve_and_answer` and `direct_answer` nodes return their results as a JSON string validated against the Pydantic `AnswerSchema` (`answer`, `sources`, `confidence`).
+    *   **Data Flow:** User `question` -> `classify_intent` -> `route_intent` -> (`retrieve_and_answer` with retrieved `documents` OR `direct_answer`) -> JSON output (AnswerSchema).
+
+                                                        *****`MOCK_LLM` Toggle (`MOCK_LLM = 1` vs `MOCK_LLM = 0`):****
+
+The `MOCK_LLM` toggle primarily affects the **Generation** stage.
+
+*   **Default (`MOCK_LLM = 1` - Mock Mode):**
+    *   **`classify_intent`:** Uses a simple keyword heuristic to classify questions.
+    *   **`retrieve_and_answer`:** Generates a templated answer using a fixed snippet from the first retrieved document. `sources` are populated from retrieved documents, and `confidence` is fixed at `1.0`.
+    *   **`direct_answer`:** Returns a static, canned response ("I can only answer questions about Zepto policies right now."). `sources` are empty, and `confidence` is fixed at `1.0`.
+
+*   **Optional (`MOCK_LLM = 0` - Real LLM Mode):**
+    *   **`classify_intent`:** Would ideally integrate with a real LLM for more sophisticated intent classification (not fully implemented in this exercise, but designed for extension).
+    *   **`retrieve_and_answer`:** Would utilize the `Structured Prompt Template` with the retrieved document chunks and the user's question to query a real LLM (e.g., Google Gemini) for a coherent and context-aware answer. The `sources` and `confidence` would be derived from the LLM's response or a post-processing step.
+    *   **`direct_answer`:** Would query a real LLM directly to provide a more nuanced answer to general questions, potentially apologizing for not having policy information or redirecting the user.
+
+                                ***Diagram (Optional, Text-based)***
+
+```text
++-----------------------+
+| FastAPI App (/ask)    |
+| (RequestSchema ->     |
+|  LangGraph)           |
++-----------+-----------+
+            |
+            v
++-----------------------+
+| LangGraph StateGraph  |
+| (Initial State)       |
++-----------+-----------+
+            |
+            v
++-----------------------+
+| Node: classify_intent |
+| (MOCK_LLM: Keyword    |
+|  Heuristic)           |
++-----------+-----------+
+            |
+            v
++-----------------------+
+|   Conditional Edge:   |
+|     route_intent      |
+|   (Based on Class.)   |
++-----------+-----------+
+     /             \
+    /               \
+   v                 v
++-----------------+  +------------------+
+| Node:           |  | Node:            |
+| retrieve_and_answer |  | direct_answer    |
+| (Policy Qs)     |  | (General Qs)     |
+| (MOCK_LLM: Retr.-> |  | (MOCK_LLM: Static |
+|  Templated Ans.)|  |  Response)       |
++---------^-------+  +--------^---------+
+          |                  |
+          |                  |
++---------+---------+  +-----+------------+
+| ChromaDB Vectorstore|  | No Retrieval   |
+| (Embeddings, Chunks)|  | or LLM Call    |
++---------------------+  | (Mock Mode)    |
+                         +------------------+
+
+Output from retrieve_and_answer or direct_answer -> Pydantic AnswerSchema (JSON)
+```
